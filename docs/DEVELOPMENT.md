@@ -12,7 +12,7 @@ This guide covers setup, coding standards, and development workflows for the Xan
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/xandeum-analytics.git
+git clone https://github.com/abulimen/xandeum-analytics.git
 cd xandeum-analytics
 
 # Install dependencies

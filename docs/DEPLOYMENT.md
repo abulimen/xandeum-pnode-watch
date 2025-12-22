@@ -246,7 +246,7 @@ sudo apt install -y python3 make g++
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/xandeum-analytics.git
+git clone https://github.com/abulimen/xandeum-analytics.git
 cd xandeum-analytics
 
 # Install dependencies

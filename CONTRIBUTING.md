@@ -13,7 +13,7 @@ Thank you for your interest in contributing to the Xandeum pNode Analytics Platf
 ## Development Setup
 
 ```bash
-git clone https://github.com/your-username/xandeum-analytics.git
+git clone https://github.com/abulimen/xandeum-analytics.git
 cd xandeum-analytics
 npm install
 cp .env.example .env.local

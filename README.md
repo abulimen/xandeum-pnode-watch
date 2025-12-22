@@ -9,7 +9,7 @@ A comprehensive web-based analytics platform for monitoring and visualizing Xand
 
 ```bash
 # Clone and install
-git clone https://github.com/your-username/xandeum-analytics.git
+git clone https://github.com/abulimen/xandeum-analytics.git
 cd xandeum-analytics
 npm install
 
