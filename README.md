@@ -1,36 +1,154 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Xandeum Analytics Dashboard (pNode Watch)
+> **Note:** This is a community-built initiative to support Xandeum operators. It is **not** an official product of Xandeum Labs.
 
-## Getting Started
+![Dashboard Preview](public/dashboard-preview.png)
 
-First, run the development server:
+A comprehensive web-based analytics platform for monitoring and visualizing Xandeum's Provider Node (pNode) network in real-time.
+
+## Quick Start
 
 ```bash
+# Clone and install
+git clone https://github.com/your-username/xandeum-analytics.git
+cd xandeum-analytics
+npm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with your settings
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | System design, components, and data flow |
+| [API Reference](docs/API.md) | Complete API documentation |
+| [Development Guide](docs/DEVELOPMENT.md) | Setup, coding standards, and workflows |
+| [User Guide](docs/USER_GUIDE.md) | Feature documentation for end users |
+| [Deployment](docs/DEPLOYMENT.md) | Production deployment procedures |
+| [Bot Setup](docs/BOTS.md) | Telegram & Discord bot configuration |
 
-## Learn More
+## Features
 
-To learn more about Next.js, take a look at the following resources:
+### Dashboard
+- **Real-Time Monitoring** - Network health, total nodes, uptime, storage
+- **Interactive Data Table** - Sort, filter, search nodes with status indicators
+- **Auto-Refresh** - Data updates every 30 seconds
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Analytics
+- **Time-Series Charts** - Network uptime trends, node counts, response times
+- **Version Distribution** - Node software version breakdown
+- **Version Distribution** - Node software version breakdown
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Map
+- **Interactive World Map** - Geographic distribution with zoom/pan
+- **Color-Coded Markers** - Green (online), yellow (degraded), red (offline)
+- **Region Statistics** - Sidebar with country/city breakdown
 
-## Deploy on Vercel
+### Leaderboard
+- **Top Nodes by Uptime** - Highest availability with reliability badges
+- **Top Nodes by Speed** - Fastest response times
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Alert System
+- **Email Notifications** - Node offline, score drop alerts via Brevo
+- **Browser Push** - Real-time notifications with service worker
+- **Per-Node Subscriptions** - Subscribe to specific node events
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Tools
+- **ROI Calculator** - Estimate pNode rewards with boost multipliers
+- **Staking Calculator** - Calculate XANDSOL staking returns with real-time data
+- **Trade XAND** - Integrated token trading interface
+- **AI Copilot** - LongCat AI-powered assistant with real-time data access
+- **Telegram Bot** - Network stats and alerts via Telegram
+- **Discord Bot** - Slash commands for server integration
+- **Tour Guide** - Interactive walkthroughs for all major pages
+- **Node Comparison** - Compare up to 4 nodes side-by-side
+- **Network Summary** - AI-generated health reports
+- **Mobile Optimized** - Fully responsive design for all devices
+- **PWA Ready** - Installable as a native app on iOS and Android
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Framework | Next.js 14+ (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS + shadcn/ui |
+| Charts | Recharts |
+| Maps | react-simple-maps |
+| State | TanStack Query (React Query) |
+| HTTP | Axios, Fetch API |
+| Database | SQLite (better-sqlite3) |
+| Email | Brevo (Sendinblue) API |
+| Push | Web Push (VAPID) |
+| Token Data | Jupiter API |
+| AI | LongCat AI (OpenAI-compatible) |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_PNODE_SEED_IPS` | Yes | Comma-separated seed node IPs |
+| `NEXT_PUBLIC_PNODE_RPC_PORT` | No | Default: `6000` |
+| `BREVO_API_KEY` | No | For email alerts |
+| `VAPID_PUBLIC_KEY` | No | For push notifications |
+| `VAPID_PRIVATE_KEY` | No | For push notifications |
+| `NEXT_PUBLIC_BASE_URL` | No | Base URL for email links |
+| `GEMINI_API_KEY` | Yes | For AI Copilot |
+| `GEMINI_MODEL` | No | Default: gemini-2.0-flash |
+| `LONGCAT_API_KEY` | Yes | For Network Summary |
+| `LONGCAT_API_URL` | No | LongCat API Endpoint |
+| `TELEGRAM_BOT_TOKEN` | No | For Telegram Bot |
+| `DISCORD_BOT_TOKEN` | No | For Discord Bot |
+| `DISCORD_APP_ID` | No | For Discord Bot |
+| `DISCORD_PUBLIC_KEY` | No | For Discord Bot |
+
+## Project Structure
+
+```
+xandeum-analytics/
+├── app/                    # Next.js App Router pages
+│   ├── api/                # API routes (prpc, alerts, etc.)
+│   ├── analytics/          # Analytics page
+│   ├── guide/              # User guide page
+│   ├── leaderboard/        # Leaderboard page
+│   ├── map/                # Geographic map page
+│   ├── nodes/[id]/         # Node details dynamic route
+│   └── page.tsx            # Dashboard home
+├── components/
+│   ├── alerts/             # Alert subscription components
+│   ├── analytics/          # Chart components
+│   ├── dashboard/          # Dashboard components
+│   ├── layout/             # Header, Footer
+│   ├── map/                # Map components
+│   └── ui/                 # shadcn/ui components
+├── hooks/                  # Custom React hooks
+├── lib/
+│   ├── db/                 # SQLite database layer
+│   └── services/           # Business logic services
+├── types/                  # TypeScript definitions
+└── docs/                   # Documentation
+```
+
+## Scripts
+
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm start        # Start production server
+npm run lint     # Run ESLint
+```
+
+## License
+
+MIT License - see LICENSE file for details.
+
+---
+
+Built with ❤️ for the Xandeum Network

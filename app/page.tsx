@@ -1,65 +1,245 @@
-import Image from "next/image";
+/**
+ * Dashboard Page - Main landing page for pNode Analytics
+ * Enhanced with official credits from Xandeum API
+ */
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+'use client';
+
+import { useMemo } from 'react';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { RefreshBar } from '@/components/layout/RefreshBar';
+import { StatsCards } from '@/components/dashboard/StatsCards';
+import { FilterBar } from '@/components/dashboard/FilterBar';
+import { NodeTable } from '@/components/dashboard/NodeTable';
+import { Pagination } from '@/components/dashboard/Pagination';
+import { BestNodesToStake } from '@/components/dashboard/BestNodesToStake';
+import { QuickStatsSummary } from '@/components/dashboard/QuickStatsSummary';
+import { ComparisonPanel } from '@/components/dashboard/ComparisonPanel';
+import { ErrorState } from '@/components/ui/ErrorState';
+import {
+    useNodes,
+    useNetworkStats,
+    useNodeFilters,
+    useNodeSort,
+    usePagination,
+    useComparison,
+    useNodeLocations,
+} from '@/hooks';
+import { enrichNodesWithStakingData } from '@/lib/services/analyticsService';
+import { useCredits, enrichNodesWithCreditsData } from '@/hooks/useCredits';
+import { useActivityFeed } from '@/hooks/useActivityFeed';
+import { useAutoSnapshot } from '@/hooks/useAutoSnapshot';
+import { ActivityFeed } from '@/components/activity/ActivityFeed';
+import { ActivityDrawer } from '@/components/activity/ActivityDrawer';
+
+export default function DashboardPage() {
+    const { nodes, isLoading, isError, error, errorMessage, refetch, lastUpdated, isFetching, responseTime } = useNodes();
+
+    // Auto-snapshot check - triggers if cron hasn't run in over an hour
+    useAutoSnapshot();
+
+    // Fetch credits from Xandeum API
+    const { creditsMap, avgCredits, totalCredits, creditsThreshold } = useCredits();
+
+    // Enrich all nodes with staking data and credits
+    const enrichedNodes = useMemo(() => {
+        const withStakingData = enrichNodesWithStakingData(nodes);
+        return enrichNodesWithCreditsData(withStakingData, creditsMap);
+    }, [nodes, creditsMap]);
+
+    // Calculate stats - override credits fields with API data
+    const { stats: baseStats, issues, issueCount } = useNetworkStats(enrichedNodes);
+    const stats = useMemo(() => ({
+        ...baseStats,
+        avgCredits,
+        avgStakingScore: avgCredits, // For backward compat
+        totalCredits,
+        creditsThreshold,
+    }), [baseStats, avgCredits, totalCredits, creditsThreshold]);
+
+    // Fetch locations for ALL nodes (needed for country/city filters)
+    const { nodesWithLocation } = useNodeLocations(enrichedNodes);
+
+    // Filtering (use nodes with location data for country/city filters)
+    const {
+        filteredNodes,
+        searchQuery,
+        setSearchQuery,
+        statusFilter,
+        setStatusFilter,
+        regionFilter,
+        setRegionFilter,
+        countryFilter,
+        setCountryFilter,
+        cityFilter,
+        setCityFilter,
+        versionTypeFilter,
+        setVersionTypeFilter,
+        accessFilter,
+        setAccessFilter,
+        favoritesOnly,
+        setFavoritesOnly,
+        favoritesCount,
+        clearFilters,
+        hasActiveFilters,
+        availableRegions,
+        availableCountries,
+        availableCities,
+    } = useNodeFilters(nodesWithLocation);
+
+    // Sorting
+    const { sortedNodes, sortColumn, sortDirection, setSort } = useNodeSort(filteredNodes);
+
+    // Pagination
+    const {
+        paginatedItems: paginatedNodes,
+        currentPage,
+        pageSize,
+        totalPages,
+        setPage,
+        setPageSize,
+        hasNextPage,
+        hasPrevPage,
+    } = usePagination(sortedNodes, 10);
+
+    // Comparison
+    const { selectedNodes, addNode, removeNode, clearSelection, isSelected } = useComparison();
+
+    // Get full node objects for comparison panel
+    const selectedNodeObjects = useMemo(() =>
+        selectedNodes.map(id => nodesWithLocation.find(n => n.id === id)).filter(Boolean) as typeof nodesWithLocation,
+        [selectedNodes, nodesWithLocation]
+    );
+
+    // Activity feed
+    const { events, clearEvents } = useActivityFeed(enrichedNodes, isLoading);
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header
+                issueCount={issueCount}
+                issues={issues}
+                onSearch={setSearchQuery}
+                lastUpdated={lastUpdated}
+                isRefreshing={isLoading}
+                onRefresh={refetch}
+                isError={isError}
+                activitySlot={<ActivityDrawer events={events} onClear={clearEvents} />}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+            <RefreshBar
+                lastUpdated={lastUpdated}
+                isFetching={isFetching}
+                isError={isError}
+                responseTime={responseTime}
+                onRefresh={refetch}
+            />
+
+            <main className="flex-1 container px-4 py-6 space-y-6">
+                {/* Stats Cards - Full Width */}
+                <div data-tour="network-stats">
+                    <StatsCards stats={stats} isLoading={isLoading} />
+                </div>
+
+                {/* Main Content */}
+                {isError ? (
+                    <ErrorState
+                        message={errorMessage || 'Failed to load pNode data'}
+                        onRetry={refetch}
+                    />
+                ) : (
+                    <div className="grid gap-6 xl:grid-cols-[1fr_350px]">
+                        {/* Main Content - Node Explorer */}
+                        <div className="space-y-6 min-w-0">
+                            {/* Quick Stats Summary */}
+                            <QuickStatsSummary
+                                nodes={enrichedNodes}
+                                filteredCount={filteredNodes.length}
+                            />
+
+                            {/* Filter Bar */}
+                            <div data-tour="search-bar">
+                                <FilterBar
+                                    searchQuery={searchQuery}
+                                    onSearchChange={setSearchQuery}
+                                    statusFilter={statusFilter}
+                                    onStatusFilterChange={setStatusFilter}
+                                    regionFilter={regionFilter}
+                                    onRegionFilterChange={setRegionFilter}
+                                    countryFilter={countryFilter}
+                                    onCountryFilterChange={setCountryFilter}
+                                    cityFilter={cityFilter}
+                                    onCityFilterChange={setCityFilter}
+                                    versionTypeFilter={versionTypeFilter}
+                                    onVersionTypeFilterChange={setVersionTypeFilter}
+                                    accessFilter={accessFilter}
+                                    onAccessFilterChange={setAccessFilter}
+                                    favoritesOnly={favoritesOnly}
+                                    onFavoritesOnlyChange={setFavoritesOnly}
+                                    favoritesCount={favoritesCount}
+                                    onClearFilters={clearFilters}
+                                    resultCount={filteredNodes.length}
+                                    totalCount={enrichedNodes.length}
+                                    availableRegions={availableRegions}
+                                    availableCountries={availableCountries}
+                                    availableCities={availableCities}
+                                    hasActiveFilters={hasActiveFilters}
+                                    filteredNodes={filteredNodes}
+                                />
+                            </div>
+
+                            {/* Node Table */}
+                            <div data-tour="node-table">
+                                <NodeTable
+                                    nodes={paginatedNodes}
+                                    isLoading={isLoading}
+                                    sortColumn={sortColumn}
+                                    sortDirection={sortDirection}
+                                    onSort={setSort}
+                                    onCompareAdd={addNode}
+                                    selectedForCompare={selectedNodes}
+                                />
+                            </div>
+
+                            {/* Comparison Panel */}
+                            {selectedNodeObjects.length > 0 && (
+                                <ComparisonPanel
+                                    nodes={selectedNodeObjects}
+                                    onRemove={removeNode}
+                                    onClear={clearSelection}
+                                />
+                            )}
+
+                            {/* Pagination */}
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                pageSize={pageSize}
+                                totalItems={filteredNodes.length}
+                                onPageChange={setPage}
+                                onPageSizeChange={setPageSize}
+                                hasNextPage={hasNextPage}
+                                hasPrevPage={hasPrevPage}
+                            />
+                        </div>
+
+                        {/* Sidebar - Hidden on small screens, sticky on desktop */}
+                        <aside className="hidden xl:block" data-tour="top-performers">
+                            <div className="sticky top-20 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                                {/* Top Performers Card */}
+                                <BestNodesToStake
+                                    nodes={enrichedNodes}
+                                    isLoading={isLoading}
+                                    count={10}
+                                />
+                            </div>
+                        </aside>
+                    </div>
+                )}
+            </main>
+
+            <Footer />
         </div>
-      </main>
-    </div>
-  );
+    );
 }

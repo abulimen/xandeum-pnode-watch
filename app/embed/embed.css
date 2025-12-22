@@ -1,0 +1,7 @@
+/* Embed-specific styles */
+.embed-body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
