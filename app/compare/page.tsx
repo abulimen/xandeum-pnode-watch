@@ -584,8 +584,11 @@ export default function ComparePage() {
                                 <Button
                                     className="w-full gap-2"
                                     onClick={() => {
-                                        const nodeIds = selectedNodes.map(n => n.id).join(', ');
-                                        const message = `Compare these nodes: ${nodeIds}`;
+                                        // Build detailed node info to avoid Copilot fetching stale data
+                                        const nodeDetails = selectedNodes.map(n =>
+                                            `${n.id}: ${formatNumber(n.credits || 0)} Credits, ${(n.uptime || 0).toFixed(1)}% Uptime, Health ${n.healthScore || 0}`
+                                        ).join('\n');
+                                        const message = `Compare these pNodes and tell me which is best for staking:\n${nodeDetails}`;
                                         // Dispatch custom event to trigger Copilot
                                         window.dispatchEvent(new CustomEvent('copilot:trigger', {
                                             detail: { message }
