@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { cn } from '@/lib/utils';
 import {
     Dialog,
@@ -330,6 +331,11 @@ export function Header({
                         {/* Activity Drawer (Live Feed) - Only on dashboard */}
                         {activitySlot}
 
+                        {/* Install App Button */}
+                        <div className="hidden sm:block">
+                            <InstallAppButton />
+                        </div>
+
                         {/* Notifications Bell */}
                         <NotificationBell />
 
@@ -411,6 +417,11 @@ export function Header({
                                         </div>
                                     ))}
                                 </nav>
+
+                                {/* Install Button for Mobile */}
+                                <div className="p-4 border-t">
+                                    <InstallAppButton />
+                                </div>
 
                                 {/* Network Status Footer */}
                                 <div className="mt-auto p-4 border-t bg-muted/30 shrink-0">
