@@ -1,9 +1,23 @@
 # Xandeum Analytics Dashboard (pNode Watch)
 > **Note:** This is a community-built initiative to support Xandeum operators. It is **not** an official product of Xandeum Labs.
 
-![Dashboard Preview](public/dashboard-preview.png)
+![Dashboard Preview](public/screenshots/dashboard.png)
 
 A comprehensive web-based analytics platform for monitoring and visualizing Xandeum's Provider Node (pNode) network in real-time.
+
+## Visual Overview
+
+| Dashboard | Network Map |
+|-----------|-------------|
+| ![Dashboard](public/screenshots/dashboard.png) | ![Map](public/screenshots/map.png) |
+
+| Analytics | Leaderboard |
+|-----------|-------------|
+| ![Analytics](public/screenshots/analytics.png) | ![Leaderboard](public/screenshots/leaderboard.png) |
+
+| Node Details | ROI Calculator |
+|--------------|----------------|
+| ![Node Details](public/screenshots/node_details.png) | ![Calculator](public/screenshots/calculator.png) |
 
 ## Quick Start
 

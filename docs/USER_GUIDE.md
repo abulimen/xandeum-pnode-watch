@@ -22,6 +22,9 @@ Welcome to the Xandeum pNode Analytics Platform! This guide explains how to use 
 
 The dashboard is your main overview of the Xandeum pNode network.
 
+![Dashboard Overview](../public/screenshots/dashboard.png)
+
+
 ### Network Stats
 
 At the top of the dashboard, you'll see key metrics:
@@ -91,6 +94,9 @@ Navigate through results:
 
 The Analytics page provides charts and trends.
 
+![Network Analytics](../public/screenshots/analytics.png)
+
+
 ### Available Charts
 
 1. **Network Uptime Over Time** - Line chart showing uptime trends
@@ -115,6 +121,9 @@ Filter charts by time range:
 ## Network Map
 
 The Map page shows geographic distribution of nodes worldwide.
+
+![Network Map](../public/screenshots/map.png)
+
 
 ### Map Features
 
@@ -145,6 +154,9 @@ The map updates automatically. The "Live Updates" indicator shows last sync time
 ## Leaderboard
 
 The Leaderboard ranks top-performing nodes.
+
+![Leaderboard](../public/screenshots/leaderboard.png)
+
 
 ### Categories
 
@@ -182,6 +194,9 @@ The **pNode ROI Calculator** helps operators estimate potential rewards.
   - Check eligibility against network thresholds (80% of 95th percentile)
   - View projected "Fixed Rewards" and "Storage Income" (STOINC)
 
+![ROI Calculator](../public/screenshots/calculator.png)
+
+
 ### Staking Calculator
 
 The **Stake SOL** calculator is for users who want to stake SOL for XANDSOL.
@@ -207,6 +222,9 @@ Quick access to trade XAND tokens.
 ## Node Details
 
 Click any node ID to view detailed information.
+
+![Node Details](../public/screenshots/node_details.png)
+
 
 ### Overview Tab
 
@@ -388,6 +406,9 @@ Get Xandeum network stats directly in your chat apps!
 | `/top [n]` | Top N nodes by credits (default: 5) |
 
 Visit the **Bots** page in the app for more details and invite links.
+
+![Bots Page](../public/screenshots/bots.png)
+
 
 ---
 
