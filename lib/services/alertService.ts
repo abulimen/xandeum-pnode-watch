@@ -3,16 +3,8 @@
  * Processes snapshots and sends alerts to subscribers
  */
 
-import {
-    getSubscriptionsForNode,
-    wasAlertSentRecently,
-    recordAlertSent,
-    getPreviousSnapshot,
-    getNodesFromSnapshot,
-    NodeSnapshotRecord,
-    insertUserAlert
-} from '@/lib/db/queries';
 import { sendNodeOfflineAlert, sendScoreDropAlert } from './notificationService';
+import { NodeSnapshotRecord } from '@/lib/db/queries';
 
 type TransformedNode = {
     node_id: string;
@@ -44,6 +36,22 @@ export async function processAlerts(
         scoreDropAlerts: 0,
         errors: 0,
     };
+
+    // Dynamically import DB functions
+    let getSubscriptionsForNode, wasAlertSentRecently, recordAlertSent, getPreviousSnapshot, getNodesFromSnapshot, insertUserAlert;
+    try {
+        const dbQueries = await import('@/lib/db/queries');
+        getSubscriptionsForNode = dbQueries.getSubscriptionsForNode;
+        wasAlertSentRecently = dbQueries.wasAlertSentRecently;
+        recordAlertSent = dbQueries.recordAlertSent;
+        getPreviousSnapshot = dbQueries.getPreviousSnapshot;
+        getNodesFromSnapshot = dbQueries.getNodesFromSnapshot;
+        insertUserAlert = dbQueries.insertUserAlert;
+    } catch (error) {
+        console.error('[alerts] Failed to import DB queries:', error);
+        stats.errors++;
+        return stats;
+    }
 
     try {
         // Get previous snapshot for comparison
