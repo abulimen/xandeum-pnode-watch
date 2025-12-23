@@ -55,13 +55,13 @@ export async function processAlerts(
 
     try {
         // Get previous snapshot for comparison
-        const previousSnapshot = getPreviousSnapshot();
+        const previousSnapshot = await getPreviousSnapshot();
         if (!previousSnapshot) {
             console.log('[alerts] No previous snapshot for comparison, skipping alerts');
             return stats;
         }
 
-        const previousNodes = getNodesFromSnapshot(previousSnapshot.id);
+        const previousNodes = await getNodesFromSnapshot(previousSnapshot.id);
         const previousNodeMap = new Map<string, NodeSnapshotRecord>();
         previousNodes.forEach(n => previousNodeMap.set(n.node_id, n));
 
@@ -70,7 +70,7 @@ export async function processAlerts(
             const previousNode = previousNodeMap.get(currentNode.node_id);
 
             // Get subscriptions for this node
-            const subscriptions = getSubscriptionsForNode(currentNode.node_id);
+            const subscriptions = await getSubscriptionsForNode(currentNode.node_id);
             if (subscriptions.length === 0) continue;
 
             // Check if node went offline
@@ -79,7 +79,7 @@ export async function processAlerts(
                     if (!sub.alert_offline) continue;
 
                     // Check if we already sent an alert recently
-                    if (wasAlertSentRecently(sub.id, currentNode.node_id, 'offline', 6)) {
+                    if (await wasAlertSentRecently(sub.id, currentNode.node_id, 'offline', 6)) {
                         continue;
                     }
 
@@ -98,10 +98,10 @@ export async function processAlerts(
                             dashboardUrl: nodeUrl,
                         });
 
-                        recordAlertSent(sub.id, currentNode.node_id, 'offline');
+                        await recordAlertSent(sub.id, currentNode.node_id, 'offline');
 
                         // Store in user_alerts for bell icon display
-                        insertUserAlert({
+                        await insertUserAlert({
                             subscription_id: sub.id,
                             node_id: currentNode.node_id,
                             alert_type: 'offline',
@@ -129,7 +129,7 @@ export async function processAlerts(
 
                     // Alert if score dropped below threshold
                     if (oldScore >= threshold && newScore < threshold) {
-                        if (wasAlertSentRecently(sub.id, currentNode.node_id, 'score_drop', 6)) {
+                        if (await wasAlertSentRecently(sub.id, currentNode.node_id, 'score_drop', 6)) {
                             continue;
                         }
 
@@ -151,10 +151,10 @@ export async function processAlerts(
                                 dashboardUrl: nodeUrl,
                             });
 
-                            recordAlertSent(sub.id, currentNode.node_id, 'score_drop');
+                            await recordAlertSent(sub.id, currentNode.node_id, 'score_drop');
 
                             // Store in user_alerts for bell icon display
-                            insertUserAlert({
+                            await insertUserAlert({
                                 subscription_id: sub.id,
                                 node_id: currentNode.node_id,
                                 alert_type: 'score_drop',

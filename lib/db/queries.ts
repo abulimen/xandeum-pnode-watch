@@ -1,9 +1,9 @@
 /**
- * Database Query Functions
- * Provides typed query functions for the analytics database
+ * Database Query Functions for Supabase
+ * Provides typed async query functions for the analytics database
  */
 
-import { getDatabase } from './index';
+import { getSupabase, isSupabaseConfigured } from './index';
 
 // Types
 export interface SnapshotRecord {
@@ -32,7 +32,7 @@ export interface NodeSnapshotRecord {
     staking_score: number;
     credits: number;
     version: string | null;
-    is_public: number;
+    is_public: boolean;
 }
 
 export interface AlertSubscription {
@@ -41,12 +41,23 @@ export interface AlertSubscription {
     push_endpoint: string | null;
     push_p256dh: string | null;
     push_auth: string | null;
-    node_ids: string; // JSON array
-    alert_offline: number;
-    alert_score_drop: number;
+    node_ids: string[]; // JSON array stored as JSONB
+    alert_offline: boolean;
+    alert_score_drop: boolean;
     score_threshold: number;
     created_at: string;
-    verified: number;
+    verified: boolean;
+}
+
+export interface UserAlert {
+    id: number;
+    subscription_id: number;
+    node_id: string;
+    alert_type: string;
+    title: string;
+    message: string;
+    created_at: string;
+    read: boolean;
 }
 
 // ================== SNAPSHOT QUERIES ==================
@@ -54,7 +65,7 @@ export interface AlertSubscription {
 /**
  * Create a new network snapshot
  */
-export function createSnapshot(data: {
+export async function createSnapshot(data: {
     total_nodes: number;
     online_nodes: number;
     degraded_nodes: number;
@@ -65,36 +76,27 @@ export function createSnapshot(data: {
     avg_staking_score: number;
     total_credits: number;
     avg_credits: number;
-}): number {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO snapshots (
-            total_nodes, online_nodes, degraded_nodes, offline_nodes,
-            total_storage_bytes, used_storage_bytes, avg_uptime, avg_staking_score,
-            total_credits, avg_credits
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+}): Promise<number> {
+    const supabase = getSupabase();
 
-    const result = stmt.run(
-        data.total_nodes,
-        data.online_nodes,
-        data.degraded_nodes,
-        data.offline_nodes,
-        data.total_storage_bytes,
-        data.used_storage_bytes,
-        data.avg_uptime,
-        data.avg_staking_score,
-        data.total_credits,
-        data.avg_credits
-    );
+    const { data: result, error } = await supabase
+        .from('snapshots')
+        .insert(data)
+        .select('id')
+        .single();
 
-    return result.lastInsertRowid as number;
+    if (error) {
+        console.error('[db] createSnapshot error:', error);
+        throw new Error(`Failed to create snapshot: ${error.message}`);
+    }
+
+    return result.id;
 }
 
 /**
  * Insert node snapshot data (batch insert)
  */
-export function insertNodeSnapshots(snapshotId: number, nodes: Array<{
+export async function insertNodeSnapshots(snapshotId: number, nodes: Array<{
     node_id: string;
     public_key?: string;
     status: string;
@@ -104,143 +106,204 @@ export function insertNodeSnapshots(snapshotId: number, nodes: Array<{
     credits: number;
     version?: string;
     is_public: boolean;
-}>): void {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO node_snapshots (
-            snapshot_id, node_id, public_key, status, uptime_percent,
-            storage_usage_percent, staking_score, credits, version, is_public
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+}>): Promise<void> {
+    const supabase = getSupabase();
 
-    const insertMany = db.transaction((nodesData: typeof nodes) => {
-        for (const node of nodesData) {
-            stmt.run(
-                snapshotId,
-                node.node_id,
-                node.public_key || null,
-                node.status,
-                node.uptime_percent,
-                node.storage_usage_percent,
-                node.staking_score,
-                node.credits,
-                node.version || null,
-                node.is_public ? 1 : 0
-            );
+    const insertData = nodes.map(node => ({
+        snapshot_id: snapshotId,
+        node_id: node.node_id,
+        public_key: node.public_key || null,
+        status: node.status,
+        uptime_percent: node.uptime_percent,
+        storage_usage_percent: node.storage_usage_percent,
+        staking_score: node.staking_score,
+        credits: node.credits,
+        version: node.version || null,
+        is_public: node.is_public,
+    }));
+
+    // Batch insert in chunks of 500 to avoid payload limits
+    const chunkSize = 500;
+    for (let i = 0; i < insertData.length; i += chunkSize) {
+        const chunk = insertData.slice(i, i + chunkSize);
+        const { error } = await supabase.from('node_snapshots').insert(chunk);
+        if (error) {
+            console.error('[db] insertNodeSnapshots error:', error);
+            throw new Error(`Failed to insert node snapshots: ${error.message}`);
         }
-    });
-
-    insertMany(nodes);
+    }
 }
 
 /**
  * Get network history for the last N days
  */
-export function getNetworkHistory(days: number = 7): SnapshotRecord[] {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM snapshots
-        WHERE timestamp >= datetime('now', '-' || ? || ' days')
-        ORDER BY timestamp ASC
-    `);
+export async function getNetworkHistory(days: number = 7): Promise<SnapshotRecord[]> {
+    if (!isSupabaseConfigured()) {
+        console.warn('[db] Supabase not configured, returning empty history');
+        return [];
+    }
 
-    return stmt.all(days) as SnapshotRecord[];
+    const supabase = getSupabase();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const { data, error } = await supabase
+        .from('snapshots')
+        .select('*')
+        .gte('timestamp', cutoffDate.toISOString())
+        .order('timestamp', { ascending: true });
+
+    if (error) {
+        console.error('[db] getNetworkHistory error:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 /**
  * Get node history for a specific node
  */
-export function getNodeHistory(nodeId: string, days: number = 30): Array<{
+export async function getNodeHistory(nodeId: string, days: number = 30): Promise<Array<{
     timestamp: string;
     status: string;
     uptime_percent: number;
     storage_usage_percent: number;
     staking_score: number;
+    credits: number;
     version: string | null;
-}> {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT 
-            s.timestamp,
-            ns.status,
-            ns.uptime_percent,
-            ns.storage_usage_percent,
-            ns.staking_score,
-            ns.credits,
-            ns.version
-        FROM node_snapshots ns
-        JOIN snapshots s ON s.id = ns.snapshot_id
-        WHERE ns.node_id = ?
-        AND s.timestamp >= datetime('now', '-' || ? || ' days')
-        ORDER BY s.timestamp ASC
-    `);
+}>> {
+    if (!isSupabaseConfigured()) {
+        return [];
+    }
 
-    return stmt.all(nodeId, days) as any[];
+    const supabase = getSupabase();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const { data, error } = await supabase
+        .from('node_snapshots')
+        .select(`
+            status,
+            uptime_percent,
+            storage_usage_percent,
+            staking_score,
+            credits,
+            version,
+            snapshots!inner(timestamp)
+        `)
+        .eq('node_id', nodeId)
+        .gte('snapshots.timestamp', cutoffDate.toISOString())
+        .order('snapshots(timestamp)', { ascending: true });
+
+    if (error) {
+        console.error('[db] getNodeHistory error:', error);
+        return [];
+    }
+
+    // Flatten the joined data
+    return (data || []).map((row: any) => ({
+        timestamp: row.snapshots.timestamp,
+        status: row.status,
+        uptime_percent: row.uptime_percent,
+        storage_usage_percent: row.storage_usage_percent,
+        staking_score: row.staking_score,
+        credits: row.credits,
+        version: row.version,
+    }));
 }
 
 /**
  * Get the most recent snapshot
  */
-export function getLatestSnapshot(): SnapshotRecord | null {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM snapshots
-        ORDER BY timestamp DESC
-        LIMIT 1
-    `);
+export async function getLatestSnapshot(): Promise<SnapshotRecord | null> {
+    if (!isSupabaseConfigured()) {
+        return null;
+    }
 
-    return stmt.get() as SnapshotRecord | null;
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+        .from('snapshots')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+
+    if (error) {
+        if (error.code !== 'PGRST116') { // Not "no rows" error
+            console.error('[db] getLatestSnapshot error:', error);
+        }
+        return null;
+    }
+
+    return data;
 }
 
 /**
  * Get previous snapshot (for comparison/alerts)
  */
-export function getPreviousSnapshot(): SnapshotRecord | null {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM snapshots
-        ORDER BY timestamp DESC
-        LIMIT 1 OFFSET 1
-    `);
+export async function getPreviousSnapshot(): Promise<SnapshotRecord | null> {
+    if (!isSupabaseConfigured()) {
+        return null;
+    }
 
-    return stmt.get() as SnapshotRecord | null;
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+        .from('snapshots')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .range(1, 1);
+
+    if (error) {
+        console.error('[db] getPreviousSnapshot error:', error);
+        return null;
+    }
+
+    return data?.[0] || null;
 }
 
 /**
  * Get node data from a specific snapshot
  */
-export function getNodesFromSnapshot(snapshotId: number): NodeSnapshotRecord[] {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM node_snapshots
-        WHERE snapshot_id = ?
-    `);
+export async function getNodesFromSnapshot(snapshotId: number): Promise<NodeSnapshotRecord[]> {
+    const supabase = getSupabase();
 
-    return stmt.all(snapshotId) as NodeSnapshotRecord[];
+    const { data, error } = await supabase
+        .from('node_snapshots')
+        .select('*')
+        .eq('snapshot_id', snapshotId);
+
+    if (error) {
+        console.error('[db] getNodesFromSnapshot error:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 /**
  * Prune old snapshots (keep last N days)
  */
-export function pruneOldSnapshots(keepDays: number = 30): number {
-    const db = getDatabase();
+export async function pruneOldSnapshots(keepDays: number = 30): Promise<number> {
+    const supabase = getSupabase();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - keepDays);
 
-    // Delete old node snapshots first (foreign key)
-    db.prepare(`
-        DELETE FROM node_snapshots
-        WHERE snapshot_id IN (
-            SELECT id FROM snapshots
-            WHERE timestamp < datetime('now', '-' || ? || ' days')
-        )
-    `).run(keepDays);
+    // Delete old snapshots (cascade will handle node_snapshots)
+    const { data, error } = await supabase
+        .from('snapshots')
+        .delete()
+        .lt('timestamp', cutoffDate.toISOString())
+        .select('id');
 
-    // Delete old snapshots
-    const result = db.prepare(`
-        DELETE FROM snapshots
-        WHERE timestamp < datetime('now', '-' || ? || ' days')
-    `).run(keepDays);
+    if (error) {
+        console.error('[db] pruneOldSnapshots error:', error);
+        return 0;
+    }
 
-    return result.changes;
+    return data?.length || 0;
 }
 
 // ================== ALERT QUERIES ==================
@@ -248,7 +311,7 @@ export function pruneOldSnapshots(keepDays: number = 30): number {
 /**
  * Create an alert subscription
  */
-export function createAlertSubscription(data: {
+export async function createAlertSubscription(data: {
     email?: string;
     push_endpoint?: string;
     push_p256dh?: string;
@@ -257,303 +320,447 @@ export function createAlertSubscription(data: {
     alert_offline?: boolean;
     alert_score_drop?: boolean;
     score_threshold?: number;
-}): number {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO alert_subscriptions (
-            email, push_endpoint, push_p256dh, push_auth,
-            node_ids, alert_offline, alert_score_drop, score_threshold
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+}): Promise<number> {
+    const supabase = getSupabase();
 
-    const result = stmt.run(
-        data.email || null,
-        data.push_endpoint || null,
-        data.push_p256dh || null,
-        data.push_auth || null,
-        JSON.stringify(data.node_ids),
-        data.alert_offline !== false ? 1 : 0,
-        data.alert_score_drop !== false ? 1 : 0,
-        data.score_threshold || 70
-    );
+    const { data: result, error } = await supabase
+        .from('alert_subscriptions')
+        .insert({
+            email: data.email || null,
+            push_endpoint: data.push_endpoint || null,
+            push_p256dh: data.push_p256dh || null,
+            push_auth: data.push_auth || null,
+            node_ids: data.node_ids,
+            alert_offline: data.alert_offline !== false,
+            alert_score_drop: data.alert_score_drop !== false,
+            score_threshold: data.score_threshold || 70,
+        })
+        .select('id')
+        .single();
 
-    return result.lastInsertRowid as number;
+    if (error) {
+        console.error('[db] createAlertSubscription error:', error);
+        throw new Error(`Failed to create subscription: ${error.message}`);
+    }
+
+    return result.id;
 }
 
 /**
  * Get subscriptions watching a specific node
  */
-export function getSubscriptionsForNode(nodeId: string): AlertSubscription[] {
-    const db = getDatabase();
-    // SQLite JSON functions to check if nodeId is in the node_ids array
-    const stmt = db.prepare(`
-        SELECT * FROM alert_subscriptions
-        WHERE node_ids LIKE '%"' || ? || '"%'
-        AND verified = 1
-    `);
+export async function getSubscriptionsForNode(nodeId: string): Promise<AlertSubscription[]> {
+    const supabase = getSupabase();
 
-    return stmt.all(nodeId) as AlertSubscription[];
+    // Use a raw filter with the @> operator for JSONB array containment
+    // The value must be a valid JSON array string
+    const { data, error } = await supabase
+        .from('alert_subscriptions')
+        .select('*')
+        .filter('node_ids', 'cs', JSON.stringify([nodeId]))
+        .eq('verified', true);
+
+    if (error) {
+        console.error('[db] getSubscriptionsForNode error:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 /**
  * Get subscription by email address
  */
-export function getSubscriptionByEmail(email: string): AlertSubscription | null {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM alert_subscriptions
-        WHERE email = ?
-        LIMIT 1
-    `);
+export async function getSubscriptionByEmail(email: string): Promise<AlertSubscription | null> {
+    const supabase = getSupabase();
 
-    const result = stmt.get(email) as AlertSubscription | undefined;
-    return result || null;
+    const { data, error } = await supabase
+        .from('alert_subscriptions')
+        .select('*')
+        .eq('email', email)
+        .limit(1)
+        .single();
+
+    if (error) {
+        if (error.code !== 'PGRST116') {
+            console.error('[db] getSubscriptionByEmail error:', error);
+        }
+        return null;
+    }
+
+    return data;
 }
 
 /**
  * Record that an alert was sent (for deduplication)
  */
-export function recordAlertSent(subscriptionId: number, nodeId: string, alertType: string): void {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO alert_history (subscription_id, node_id, alert_type)
-        VALUES (?, ?, ?)
-    `);
+export async function recordAlertSent(subscriptionId: number, nodeId: string, alertType: string): Promise<void> {
+    const supabase = getSupabase();
 
-    stmt.run(subscriptionId, nodeId, alertType);
+    const { error } = await supabase
+        .from('alert_history')
+        .insert({
+            subscription_id: subscriptionId,
+            node_id: nodeId,
+            alert_type: alertType,
+        });
+
+    if (error) {
+        console.error('[db] recordAlertSent error:', error);
+    }
 }
 
 /**
  * Check if an alert was already sent recently (within hours)
  */
-export function wasAlertSentRecently(subscriptionId: number, nodeId: string, alertType: string, hours: number = 6): boolean {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT COUNT(*) as count FROM alert_history
-        WHERE subscription_id = ?
-        AND node_id = ?
-        AND alert_type = ?
-        AND sent_at >= datetime('now', '-' || ? || ' hours')
-    `);
+export async function wasAlertSentRecently(subscriptionId: number, nodeId: string, alertType: string, hours: number = 6): Promise<boolean> {
+    const supabase = getSupabase();
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - hours);
 
-    const result = stmt.get(subscriptionId, nodeId, alertType, hours) as { count: number };
-    return result.count > 0;
+    const { count, error } = await supabase
+        .from('alert_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('subscription_id', subscriptionId)
+        .eq('node_id', nodeId)
+        .eq('alert_type', alertType)
+        .gte('sent_at', cutoffDate.toISOString());
+
+    if (error) {
+        console.error('[db] wasAlertSentRecently error:', error);
+        return false;
+    }
+
+    return (count || 0) > 0;
 }
 
 /**
  * Verify an email subscription
  */
-export function verifySubscription(id: number): void {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        UPDATE alert_subscriptions
-        SET verified = 1
-        WHERE id = ?
-    `);
+export async function verifySubscription(id: number): Promise<void> {
+    const supabase = getSupabase();
 
-    stmt.run(id);
+    const { error } = await supabase
+        .from('alert_subscriptions')
+        .update({ verified: true })
+        .eq('id', id);
+
+    if (error) {
+        console.error('[db] verifySubscription error:', error);
+        throw new Error(`Failed to verify subscription: ${error.message}`);
+    }
 }
 
 /**
  * Delete a subscription
  */
-export function deleteSubscription(id: number): void {
-    const db = getDatabase();
+export async function deleteSubscription(id: number): Promise<void> {
+    const supabase = getSupabase();
 
-    // Delete alert history first
-    db.prepare(`DELETE FROM alert_history WHERE subscription_id = ?`).run(id);
+    // Cascade deletes will handle related records
+    const { error } = await supabase
+        .from('alert_subscriptions')
+        .delete()
+        .eq('id', id);
 
-    // Delete verification tokens
-    db.prepare(`DELETE FROM verification_tokens WHERE subscription_id = ?`).run(id);
-
-    // Delete subscription
-    db.prepare(`DELETE FROM alert_subscriptions WHERE id = ?`).run(id);
+    if (error) {
+        console.error('[db] deleteSubscription error:', error);
+        throw new Error(`Failed to delete subscription: ${error.message}`);
+    }
 }
 
 /**
  * Create a verification token for a subscription
  */
-export function createVerificationToken(subscriptionId: number, token: string, expiresInHours: number = 24): void {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO verification_tokens (token, subscription_id, expires_at)
-        VALUES (?, ?, datetime('now', '+' || ? || ' hours'))
-    `);
+export async function createVerificationToken(subscriptionId: number, token: string, expiresInHours: number = 24): Promise<void> {
+    const supabase = getSupabase();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + expiresInHours);
 
-    stmt.run(token, subscriptionId, expiresInHours);
+    const { error } = await supabase
+        .from('verification_tokens')
+        .insert({
+            token,
+            subscription_id: subscriptionId,
+            expires_at: expiresAt.toISOString(),
+        });
+
+    if (error) {
+        console.error('[db] createVerificationToken error:', error);
+        throw new Error(`Failed to create verification token: ${error.message}`);
+    }
 }
 
 /**
  * Get subscription by verification token
  */
-export function getSubscriptionByToken(token: string): AlertSubscription | null {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT s.* FROM alert_subscriptions s
-        INNER JOIN verification_tokens vt ON vt.subscription_id = s.id
-        WHERE vt.token = ?
-        AND vt.expires_at > datetime('now')
-    `);
+export async function getSubscriptionByToken(token: string): Promise<AlertSubscription | null> {
+    const supabase = getSupabase();
 
-    const result = stmt.get(token) as AlertSubscription | undefined;
-    return result || null;
+    // First get the token to find subscription_id
+    const { data: tokenData, error: tokenError } = await supabase
+        .from('verification_tokens')
+        .select('subscription_id')
+        .eq('token', token)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+    if (tokenError || !tokenData) {
+        return null;
+    }
+
+    // Then get the subscription
+    const { data, error } = await supabase
+        .from('alert_subscriptions')
+        .select('*')
+        .eq('id', tokenData.subscription_id)
+        .single();
+
+    if (error) {
+        return null;
+    }
+
+    return data;
 }
 
 /**
  * Delete a verification token after use
  */
-export function deleteVerificationToken(token: string): void {
-    const db = getDatabase();
-    db.prepare(`DELETE FROM verification_tokens WHERE token = ?`).run(token);
+export async function deleteVerificationToken(token: string): Promise<void> {
+    const supabase = getSupabase();
+
+    const { error } = await supabase
+        .from('verification_tokens')
+        .delete()
+        .eq('token', token);
+
+    if (error) {
+        console.error('[db] deleteVerificationToken error:', error);
+    }
 }
 
 /**
  * Clean up expired verification tokens
  */
-export function cleanupExpiredTokens(): number {
-    const db = getDatabase();
-    const result = db.prepare(`
-        DELETE FROM verification_tokens
-        WHERE expires_at <= datetime('now')
-    `).run();
+export async function cleanupExpiredTokens(): Promise<number> {
+    const supabase = getSupabase();
 
-    return result.changes;
+    const { data, error } = await supabase
+        .from('verification_tokens')
+        .delete()
+        .lt('expires_at', new Date().toISOString())
+        .select('id');
+
+    if (error) {
+        console.error('[db] cleanupExpiredTokens error:', error);
+        return 0;
+    }
+
+    return data?.length || 0;
 }
 
 // ================== USER ALERTS QUERIES ==================
 
-export interface UserAlert {
-    id: number;
-    subscription_id: number;
-    node_id: string;
-    alert_type: string;
-    title: string;
-    message: string;
-    created_at: string;
-    read: number;
-}
-
 /**
  * Insert a user alert (called when sending email/push)
  */
-export function insertUserAlert(data: {
+export async function insertUserAlert(data: {
     subscription_id: number;
     node_id: string;
     alert_type: string;
     title: string;
     message: string;
-}): number {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        INSERT INTO user_alerts (subscription_id, node_id, alert_type, title, message)
-        VALUES (?, ?, ?, ?, ?)
-    `);
+}): Promise<number> {
+    const supabase = getSupabase();
 
-    const result = stmt.run(
-        data.subscription_id,
-        data.node_id,
-        data.alert_type,
-        data.title,
-        data.message
-    );
+    const { data: result, error } = await supabase
+        .from('user_alerts')
+        .insert(data)
+        .select('id')
+        .single();
 
-    return result.lastInsertRowid as number;
+    if (error) {
+        console.error('[db] insertUserAlert error:', error);
+        throw new Error(`Failed to insert user alert: ${error.message}`);
+    }
+
+    return result.id;
 }
 
 /**
  * Get alerts for a subscription (most recent first)
  */
-export function getUserAlerts(subscriptionId: number, limit: number = 50): UserAlert[] {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT * FROM user_alerts
-        WHERE subscription_id = ?
-        ORDER BY created_at DESC
-        LIMIT ?
-    `);
+export async function getUserAlerts(subscriptionId: number, limit: number = 50): Promise<UserAlert[]> {
+    const supabase = getSupabase();
 
-    return stmt.all(subscriptionId, limit) as UserAlert[];
+    const { data, error } = await supabase
+        .from('user_alerts')
+        .select('*')
+        .eq('subscription_id', subscriptionId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('[db] getUserAlerts error:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 /**
  * Get all alerts for an email (across all subscriptions)
  */
-export function getUserAlertsByEmail(email: string, limit: number = 50): UserAlert[] {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT ua.* FROM user_alerts ua
-        INNER JOIN alert_subscriptions s ON ua.subscription_id = s.id
-        WHERE s.email = ? AND s.verified = 1
-        ORDER BY ua.created_at DESC
-        LIMIT ?
-    `);
+export async function getUserAlertsByEmail(email: string, limit: number = 50): Promise<UserAlert[]> {
+    const supabase = getSupabase();
 
-    return stmt.all(email, limit) as UserAlert[];
+    // First get subscription IDs for this email
+    const { data: subs, error: subsError } = await supabase
+        .from('alert_subscriptions')
+        .select('id')
+        .eq('email', email)
+        .eq('verified', true);
+
+    if (subsError || !subs?.length) {
+        return [];
+    }
+
+    const subIds = subs.map(s => s.id);
+
+    const { data, error } = await supabase
+        .from('user_alerts')
+        .select('*')
+        .in('subscription_id', subIds)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error('[db] getUserAlertsByEmail error:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 /**
  * Get unread alert count for a subscription
  */
-export function getUnreadAlertCount(subscriptionId: number): number {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT COUNT(*) as count FROM user_alerts
-        WHERE subscription_id = ? AND read = 0
-    `);
+export async function getUnreadAlertCount(subscriptionId: number): Promise<number> {
+    const supabase = getSupabase();
 
-    const result = stmt.get(subscriptionId) as { count: number };
-    return result.count;
+    const { count, error } = await supabase
+        .from('user_alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('subscription_id', subscriptionId)
+        .eq('read', false);
+
+    if (error) {
+        console.error('[db] getUnreadAlertCount error:', error);
+        return 0;
+    }
+
+    return count || 0;
 }
 
 /**
  * Get unread count by email (across all subscriptions)
  */
-export function getUnreadAlertCountByEmail(email: string): number {
-    const db = getDatabase();
-    const stmt = db.prepare(`
-        SELECT COUNT(*) as count FROM user_alerts ua
-        INNER JOIN alert_subscriptions s ON ua.subscription_id = s.id
-        WHERE s.email = ? AND s.verified = 1 AND ua.read = 0
-    `);
+export async function getUnreadAlertCountByEmail(email: string): Promise<number> {
+    const supabase = getSupabase();
 
-    const result = stmt.get(email) as { count: number };
-    return result.count;
+    // First get subscription IDs
+    const { data: subs, error: subsError } = await supabase
+        .from('alert_subscriptions')
+        .select('id')
+        .eq('email', email)
+        .eq('verified', true);
+
+    if (subsError || !subs?.length) {
+        return 0;
+    }
+
+    const subIds = subs.map(s => s.id);
+
+    const { count, error } = await supabase
+        .from('user_alerts')
+        .select('*', { count: 'exact', head: true })
+        .in('subscription_id', subIds)
+        .eq('read', false);
+
+    if (error) {
+        console.error('[db] getUnreadAlertCountByEmail error:', error);
+        return 0;
+    }
+
+    return count || 0;
 }
 
 /**
  * Mark alert as read
  */
-export function markAlertRead(alertId: number): void {
-    const db = getDatabase();
-    db.prepare(`UPDATE user_alerts SET read = 1 WHERE id = ?`).run(alertId);
+export async function markAlertRead(alertId: number): Promise<void> {
+    const supabase = getSupabase();
+
+    const { error } = await supabase
+        .from('user_alerts')
+        .update({ read: true })
+        .eq('id', alertId);
+
+    if (error) {
+        console.error('[db] markAlertRead error:', error);
+    }
 }
 
 /**
  * Mark all alerts as read for a subscription
  */
-export function markAllAlertsRead(subscriptionId: number): void {
-    const db = getDatabase();
-    db.prepare(`UPDATE user_alerts SET read = 1 WHERE subscription_id = ?`).run(subscriptionId);
+export async function markAllAlertsRead(subscriptionId: number): Promise<void> {
+    const supabase = getSupabase();
+
+    const { error } = await supabase
+        .from('user_alerts')
+        .update({ read: true })
+        .eq('subscription_id', subscriptionId);
+
+    if (error) {
+        console.error('[db] markAllAlertsRead error:', error);
+    }
 }
 
 /**
  * Delete an alert
  */
-export function deleteUserAlert(alertId: number): void {
-    const db = getDatabase();
-    db.prepare(`DELETE FROM user_alerts WHERE id = ?`).run(alertId);
+export async function deleteUserAlert(alertId: number): Promise<void> {
+    const supabase = getSupabase();
+
+    const { error } = await supabase
+        .from('user_alerts')
+        .delete()
+        .eq('id', alertId);
+
+    if (error) {
+        console.error('[db] deleteUserAlert error:', error);
+    }
 }
 
 /**
  * Clean up old alerts (older than 30 days)
  */
-export function cleanupOldAlerts(): number {
-    const db = getDatabase();
-    const result = db.prepare(`
-        DELETE FROM user_alerts
-        WHERE created_at < datetime('now', '-30 days')
-    `).run();
+export async function cleanupOldAlerts(): Promise<number> {
+    const supabase = getSupabase();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
 
-    return result.changes;
+    const { data, error } = await supabase
+        .from('user_alerts')
+        .delete()
+        .lt('created_at', cutoffDate.toISOString())
+        .select('id');
+
+    if (error) {
+        console.error('[db] cleanupOldAlerts error:', error);
+        return 0;
+    }
+
+    return data?.length || 0;
 }
-

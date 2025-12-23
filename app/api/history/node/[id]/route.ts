@@ -26,7 +26,7 @@ export async function GET(
         // Limit to reasonable range
         const limitedDays = Math.min(Math.max(days, 1), 30);
 
-        const history = getNodeHistory(nodeId, limitedDays);
+        const history = await getNodeHistory(nodeId, limitedDays);
 
         if (history.length === 0) {
             return NextResponse.json({

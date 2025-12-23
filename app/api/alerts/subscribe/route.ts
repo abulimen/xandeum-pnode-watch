@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         // Create subscription (using available schema fields)
         // Note: The schema currently only has alert_offline, alert_score_drop, score_threshold
         // Additional preferences are stored in alert_offline/alert_score_drop as they're the core alerts
-        const subscriptionId = createAlertSubscription({
+        const subscriptionId = await createAlertSubscription({
             email: hasEmail ? email : undefined,
             push_endpoint: hasPush ? pushSubscription.endpoint : undefined,
             push_p256dh: hasPush ? pushSubscription.p256dh : undefined,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
         // If browser push only (no email), auto-verify
         if (hasPush && !hasEmail) {
-            verifySubscription(subscriptionId);
+            await verifySubscription(subscriptionId);
             return NextResponse.json({
                 success: true,
                 message: 'Successfully subscribed to browser notifications!',
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         if (hasEmail) {
             // Generate and store verification token
             const token = crypto.randomBytes(32).toString('hex');
-            createVerificationToken(subscriptionId, token, 24); // 24 hours
+            await createVerificationToken(subscriptionId, token, 24); // 24 hours
 
             // Get base URL for verification link
             const baseUrl = request.headers.get('origin') || 'https://analytics.xandeum.network';

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     try {
         // Look up token in database
-        const tokenData = getSubscriptionByToken(token);
+        const tokenData = await getSubscriptionByToken(token);
 
         if (!tokenData) {
             return new NextResponse(
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
         }
 
         // Verify the subscription
-        verifySubscription(tokenData.id);
+        await verifySubscription(tokenData.id);
 
         // Delete the token after use
-        deleteVerificationToken(token);
+        await deleteVerificationToken(token);
 
         // Return success page
         const baseUrl = request.headers.get('origin') || '';

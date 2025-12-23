@@ -39,7 +39,7 @@ export async function checkAndTriggerSnapshot(baseUrl?: string): Promise<{
 
     try {
         // Get last snapshot
-        const latestSnapshot = getLatestSnapshot();
+        const latestSnapshot = await getLatestSnapshot();
 
         if (!latestSnapshot) {
             // No snapshots exist - definitely need one
@@ -138,13 +138,13 @@ async function triggerSnapshot(baseUrl?: string, ageMs?: number): Promise<{
 /**
  * Get snapshot status info
  */
-export function getSnapshotStatus(): {
+export async function getSnapshotStatus(): Promise<{
     lastSnapshotAge: number | null;
     isStale: boolean;
     isCheckInProgress: boolean;
-} {
+}> {
     try {
-        const latestSnapshot = getLatestSnapshot();
+        const latestSnapshot = await getLatestSnapshot();
 
         if (!latestSnapshot) {
             return {

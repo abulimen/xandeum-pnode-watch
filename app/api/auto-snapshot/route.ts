@@ -10,7 +10,7 @@ import { checkAndTriggerSnapshot, getSnapshotStatus } from '@/lib/services/autoS
 export async function GET(request: NextRequest) {
     try {
         // Get current status
-        const status = getSnapshotStatus();
+        const status = await getSnapshotStatus();
 
         return NextResponse.json({
             success: true,

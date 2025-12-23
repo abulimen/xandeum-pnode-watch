@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
         else if (range === '30d') days = 30;
         else if (range === '90d') days = 90;
 
-        const snapshots = getNetworkHistory(days);
-        const latest = getLatestSnapshot();
-        const previous = getPreviousSnapshot();
+        const snapshots = await getNetworkHistory(days);
+        const latest = await getLatestSnapshot();
+        const previous = await getPreviousSnapshot();
 
         // Calculate trends (compare latest to previous)
         let trends = null;

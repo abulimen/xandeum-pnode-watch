@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Verify email has a verified subscription
-        const subscription = getSubscriptionByEmail(email);
+        const subscription = await getSubscriptionByEmail(email);
         if (!subscription || !subscription.verified) {
             return NextResponse.json(
                 { error: 'No verified subscription found for this email' },
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const alerts = getUserAlertsByEmail(email, limit);
-        const unreadCount = getUnreadAlertCountByEmail(email);
+        const alerts = await getUserAlertsByEmail(email, limit);
+        const unreadCount = await getUnreadAlertCountByEmail(email);
 
         return NextResponse.json({
             alerts,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                markAlertRead(alertId);
+                await markAlertRead(alertId);
                 return NextResponse.json({ success: true });
 
             case 'markAllRead':
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                markAllAlertsRead(subscriptionId);
+                await markAllAlertsRead(subscriptionId);
                 return NextResponse.json({ success: true });
 
             case 'delete':
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                deleteUserAlert(alertId);
+                await deleteUserAlert(alertId);
                 return NextResponse.json({ success: true });
 
             default:

@@ -317,7 +317,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Create snapshot
-        const snapshotId = createSnapshot({
+        const snapshotId = await createSnapshot({
             total_nodes: nodesWithCredits.length,
             online_nodes: onlineNodes,
             degraded_nodes: degradedNodes,
@@ -348,10 +348,10 @@ export async function GET(request: NextRequest) {
             is_public: node.isPublic,
         }));
 
-        insertNodeSnapshots(snapshotId, nodeData);
+        await insertNodeSnapshots(snapshotId, nodeData);
 
         // Prune old snapshots
-        const prunedCount = pruneOldSnapshots(30);
+        const prunedCount = await pruneOldSnapshots(30);
 
         // Process alerts for subscribers
         const baseUrl = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || '';

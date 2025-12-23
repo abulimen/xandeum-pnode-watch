@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
         // Limit to reasonable range
         const limitedDays = Math.min(Math.max(days, 1), 30);
 
-        const history = getNetworkHistory(limitedDays);
-        const latest = getLatestSnapshot();
+        const history = await getNetworkHistory(limitedDays);
+        const latest = await getLatestSnapshot();
 
         // Transform for frontend charts
         const chartData = history.map(snapshot => ({

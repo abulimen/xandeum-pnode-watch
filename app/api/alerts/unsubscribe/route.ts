@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        deleteSubscription(subscriptionId);
+        await deleteSubscription(subscriptionId);
 
         return NextResponse.json({
             success: true,
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        deleteSubscription(subscriptionId);
+        await deleteSubscription(subscriptionId);
 
         return new NextResponse(
             `<!DOCTYPE html>

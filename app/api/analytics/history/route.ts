@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
                 return NextResponse.json({ success: false, error: 'Node ID required' }, { status: 400 });
             }
 
-            const history = getNodeHistory(nodeId, days);
+            const history = await getNodeHistory(nodeId, days);
             return NextResponse.json({ success: true, data: history });
         } else {
             // Network history
-            const history = getNetworkHistory(days);
+            const history = await getNetworkHistory(days);
             return NextResponse.json({ success: true, data: history });
         }
     } catch (error) {
