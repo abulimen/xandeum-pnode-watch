@@ -32,6 +32,7 @@ All notable changes to the Xandeum pNode Analytics Platform.
 - Interactive Tour Guide with driver.js (Desktop & Mobile)
 - Global "Skip Tour" functionality
 - Tour Guide exclusion for /guide page
+- Bots Promotion Page with Telegram and Discord invite links
 
 ### Changed
 - **AI Migration**: Replaced Gemini with LongCat AI (OpenAI-compatible)

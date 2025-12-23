@@ -29,7 +29,8 @@ import {
     TrendingUp,
     Coins,
     GitCompareArrows,
-    Star
+    Star,
+    MessageCircle
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -112,6 +113,7 @@ const navGroups = [
         label: 'Resources',
         items: [
             { href: '/guide', label: 'Guide', icon: BookOpen },
+            { href: '/bots', label: 'Bots', icon: MessageCircle },
         ]
     }
 ];

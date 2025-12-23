@@ -14,6 +14,7 @@ Welcome to the Xandeum pNode Analytics Platform! This guide explains how to use 
 8. [Alerts](#alerts)
 9. [Settings](#settings)
 10. [Copilot Assistant](#copilot-assistant)
+11. [Telegram & Discord Bots](#telegram--discord-bots)
 
 ---
 
@@ -365,6 +366,31 @@ The **Xandeum Copilot** is an AI-powered assistant built directly into the dashb
 
 ---
 
+## Telegram & Discord Bots
+
+Get Xandeum network stats directly in your chat apps!
+
+### Available Bots
+
+| Platform | Link | Commands |
+|----------|------|----------|
+| **Telegram** | [@xpnodewatch_bot](https://t.me/xpnodewatch_bot) | /stats, /price, /node, /top |
+| **Discord** | [Add to Server](https://discord.com/api/oauth2/authorize?client_id=1452450161380032704&permissions=2048&scope=bot%20applications.commands) | /stats, /price, /node, /top |
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show all available commands |
+| `/stats` | Network overview (online nodes, avg uptime) |
+| `/price` | XAND token price and 24h change |
+| `/node <id>` | Get details for a specific node |
+| `/top [n]` | Top N nodes by credits (default: 5) |
+
+Visit the **Bots** page in the app for more details and invite links.
+
+---
+
 ## FAQ
 
 ### Why is my node showing as "Degraded"?
@@ -389,4 +415,5 @@ Nodes with 99.5% or higher uptime over the measurement period receive the Elite 
 
 - **Documentation**: Read this guide
 - **Guide Page**: Visit `/guide` in the app
+- **Bots**: Use our [Telegram](https://t.me/xpnodewatch_bot) or [Discord](https://discord.com/api/oauth2/authorize?client_id=1452450161380032704&permissions=2048&scope=bot%20applications.commands) bots
 - **Issues**: Report bugs via GitHub Issues
