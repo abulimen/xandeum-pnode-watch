@@ -13,10 +13,10 @@ export async function GET(req: NextRequest) {
 
     if (!webhookUrl) {
         // Try to construct from environment
-        const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_BASE_URL;
+        const host = process.env.BASE_URL || process.env.NEXT_PUBLIC_BASE_URL;
         if (!host) {
             return NextResponse.json({
-                error: 'Please provide webhook URL via ?url= parameter or set VERCEL_URL/NEXT_PUBLIC_BASE_URL'
+                error: 'Please provide webhook URL via ?url= parameter or set BASE_URL/NEXT_PUBLIC_BASE_URL'
             }, { status: 400 });
         }
         webhookUrl = host.startsWith('http') ? host : `https://${host}`;

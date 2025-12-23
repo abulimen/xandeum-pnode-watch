@@ -96,10 +96,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 |----------|----------|-------------|
 | `NEXT_PUBLIC_PNODE_SEED_IPS` | Yes | Comma-separated seed node IPs |
 | `NEXT_PUBLIC_PNODE_RPC_PORT` | No | Default: `6000` |
+| `BASE_URL` | Yes | Production base URL (e.g., `xandeum-pnode-watch.vercel.app`) |
+| `NEXT_PUBLIC_BASE_URL` | No | Base URL for client-side (with https://) |
 | `BREVO_API_KEY` | No | For email alerts |
 | `VAPID_PUBLIC_KEY` | No | For push notifications |
 | `VAPID_PRIVATE_KEY` | No | For push notifications |
-| `NEXT_PUBLIC_BASE_URL` | No | Base URL for email links |
+| `CRON_SECRET` | No | Secret key for cron API authorization |
 | `GEMINI_API_KEY` | Yes | For AI Copilot |
 | `GEMINI_MODEL` | No | Default: gemini-2.0-flash |
 | `LONGCAT_API_KEY` | Yes | For Network Summary |

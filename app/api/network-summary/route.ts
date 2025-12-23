@@ -80,8 +80,8 @@ function httpRequest(seedIP: string, method: string): Promise<{
 
 async function fetchNetworkData(): Promise<{ nodes: any[]; credits: Record<string, number> }> {
     // Use the host from environment or fallback to localhost
-    const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
+    const baseUrl = process.env.BASE_URL
+        ? `https://${process.env.BASE_URL}`
         : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
 
     console.log('[network-summary] Fetching data using base URL:', baseUrl);
