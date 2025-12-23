@@ -7,12 +7,17 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-// Database file path
-const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'analytics.db');
+// Database file path - use /tmp on Vercel (serverless), data/ locally
+const isVercel = process.env.VERCEL === '1';
+const DB_PATH = process.env.DATABASE_PATH || (
+    isVercel
+        ? '/tmp/analytics.db'
+        : path.join(process.cwd(), 'data', 'analytics.db')
+);
 
-// Ensure data directory exists
+// Ensure data directory exists (only needed for local dev, /tmp always exists)
 const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) {
+if (!isVercel && !fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
