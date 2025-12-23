@@ -58,10 +58,10 @@ const ALERT_CATEGORIES = [
     {
         id: 'performance',
         label: 'Performance Metrics',
-        description: 'Scores and uptime monitoring',
+        description: 'Credits and uptime monitoring',
         alerts: [
-            { id: 'score_drop', label: 'Staking score drops', icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10', hasThreshold: true, thresholdLabel: 'below', unit: '/100', defaultThreshold: 70 },
-            { id: 'score_rise', label: 'Staking score rises', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', hasThreshold: true, thresholdLabel: 'above', unit: '/100', defaultThreshold: 80 },
+            { id: 'score_drop', label: 'Credits drops', icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10', hasThreshold: true, thresholdLabel: 'below', unit: '', defaultThreshold: 30000 },
+            { id: 'score_rise', label: 'Credits rises', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', hasThreshold: true, thresholdLabel: 'above', unit: '', defaultThreshold: 40000 },
             { id: 'uptime_drop', label: 'Uptime drops', icon: TrendingDown, color: 'text-orange-500', bg: 'bg-orange-500/10', hasThreshold: true, thresholdLabel: 'below', unit: '%', defaultThreshold: 95 },
             { id: 'uptime_rise', label: 'Uptime rises', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', hasThreshold: true, thresholdLabel: 'above', unit: '%', defaultThreshold: 99 },
         ],
@@ -97,8 +97,8 @@ export function AlertSubscribeButton({
     // Alert selections (dynamic based on ALERT_CATEGORIES)
     const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set(['offline', 'score_drop']));
     const [thresholds, setThresholds] = useState<Record<string, number>>({
-        score_drop: 70,
-        score_rise: 80,
+        score_drop: 30000,
+        score_rise: 40000,
         uptime_drop: 95,
         uptime_rise: 99,
     });

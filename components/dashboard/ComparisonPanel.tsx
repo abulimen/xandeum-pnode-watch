@@ -246,33 +246,30 @@ export function ComparisonPanel({ nodes, onRemove, onClear }: ComparisonPanelPro
     if (nodes.length === 0) return null;
 
     return (
-        <Collapsible
-            open={isOpen}
-            onOpenChange={setIsOpen}
-            className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-lg"
-        >
-            <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2 sm:gap-4">
-                        <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="gap-2 px-2 sm:px-3">
-                                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                                <span className="font-semibold hidden sm:inline">Node Comparison</span>
-                                <span className="font-semibold sm:hidden">Compare</span>
-                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
-                                    {nodes.length}
-                                </span>
-                            </Button>
-                        </CollapsibleTrigger>
-                        <Button variant="ghost" size="sm" onClick={onClear} className="text-muted-foreground hover:text-destructive text-xs sm:text-sm">
+        <>
+            {/* Slide-out panel from left */}
+            <div
+                className={cn(
+                    "fixed top-16 left-0 z-40 h-[calc(100vh-8rem)] transition-transform duration-300 ease-in-out",
+                    isOpen ? "translate-x-0" : "-translate-x-full"
+                )}
+            >
+                <div className="h-full w-80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-r shadow-xl flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-3 border-b shrink-0">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">Node Comparison</span>
+                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
+                                {nodes.length}
+                            </span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={onClear} className="text-muted-foreground hover:text-destructive text-xs h-7">
                             Clear All
                         </Button>
                     </div>
-                </div>
 
-                <CollapsibleContent>
-                    {/* Mobile View - Card Stack */}
-                    <div className="md:hidden py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                    {/* Scrollable content */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4">
                         {nodes.map((node, idx) => (
                             <MobileNodeCard
                                 key={node.id}
@@ -287,158 +284,37 @@ export function ComparisonPanel({ nodes, onRemove, onClear }: ComparisonPanelPro
                             />
                         ))}
                     </div>
+                </div>
 
-                    {/* Desktop View - Table Format */}
-                    <div className="hidden md:block py-4 overflow-x-auto">
-                        <div className="min-w-[500px] space-y-3">
-                            {/* Node Headers */}
-                            <div className="grid gap-4" style={{ gridTemplateColumns: `100px repeat(${nodes.length}, 1fr)` }}>
-                                <div />
-                                {nodes.map((node) => (
-                                    <div key={node.id} className="relative group">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-destructive/10 hover:bg-destructive/20 text-destructive"
-                                            onClick={() => onRemove(node.id)}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                        <div className="space-y-2 p-3 rounded-lg border bg-card">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <Link
-                                                    href={`/nodes/${node.id}`}
-                                                    className="font-mono text-xs font-bold hover:text-primary transition-colors truncate max-w-[120px]"
-                                                >
-                                                    {node.id}
-                                                </Link>
-                                                <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            </div>
-                                            <StatusBadge status={node.status} showLabel size="sm" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="space-y-2">
-                                {/* Credits */}
-                                <ComparisonRow
-                                    label="Credits"
-                                    winnerIndices={winners?.credits}
-                                    values={nodes.map((n, i) => (
-                                        <span className={cn(
-                                            "font-bold text-base flex items-center gap-1",
-                                            winners?.credits[i] ? "text-emerald-500" : "text-foreground"
-                                        )}>
-                                            {n.credits?.toLocaleString() || '--'}
-                                            {winners?.credits[i] && <Trophy className="h-3.5 w-3.5" />}
-                                        </span>
-                                    ))}
-                                />
-
-                                {/* Uptime (24h) */}
-                                <ComparisonRow
-                                    label="Uptime (24h)"
-                                    winnerIndices={winners?.uptime}
-                                    values={nodes.map((n, i) => (
-                                        <span className={cn(
-                                            "flex items-center gap-1",
-                                            winners?.uptime[i] ? "text-emerald-500" : "text-foreground"
-                                        )}>
-                                            {n.uptime.toFixed(1)}%
-                                            <span className="text-xs">{getUptimeBadgeIcon(n.uptimeBadge)}</span>
-                                            {winners?.uptime[i] && <Trophy className="h-3.5 w-3.5" />}
-                                        </span>
-                                    ))}
-                                />
-
-                                {/* Online Duration */}
-                                <ComparisonRow
-                                    label="Online For"
-                                    winnerIndices={winners?.onlineFor}
-                                    values={nodes.map((n, i) => (
-                                        <span className={cn(
-                                            "flex items-center gap-1",
-                                            winners?.onlineFor[i] ? "text-emerald-500" : "text-foreground"
-                                        )}>
-                                            {formatDuration(n.uptimeSeconds || 0)}
-                                            {winners?.onlineFor[i] && <Trophy className="h-3.5 w-3.5" />}
-                                        </span>
-                                    ))}
-                                />
-
-                                {/* Public Status */}
-                                <ComparisonRow
-                                    label="Visibility"
-                                    values={nodes.map(n => (
-                                        <span className="flex items-center gap-1">
-                                            {n.isPublic ? (
-                                                <>
-                                                    <Shield className="h-3 w-3 text-emerald-500" />
-                                                    <span className="text-emerald-500 text-xs">Public</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <ShieldOff className="h-3 w-3 text-amber-500" />
-                                                    <span className="text-amber-500 text-xs">Private</span>
-                                                </>
-                                            )}
-                                        </span>
-                                    ))}
-                                />
-
-                                {/* Storage with size */}
-                                <ComparisonRow
-                                    label="Storage"
-                                    winnerIndices={winners?.storage}
-                                    values={nodes.map((n, i) => (
-                                        <div className="space-y-1 w-full">
-                                            <div className="flex justify-between text-xs">
-                                                <span className={cn(
-                                                    "font-medium flex items-center gap-1",
-                                                    winners?.storage[i] ? "text-emerald-500" : "text-foreground"
-                                                )}>
-                                                    {formatBytes(n.storage.total)}
-                                                    {winners?.storage[i] && <Trophy className="h-3 w-3" />}
-                                                </span>
-                                                <span className="text-muted-foreground">{n.storage.usagePercent?.toFixed(1)}%</span>
-                                            </div>
-                                            <ProgressBar value={n.storage.usagePercent} size="sm" />
-                                        </div>
-                                    ))}
-                                />
-
-                                {/* Version */}
-                                <ComparisonRow
-                                    label="Version"
-                                    values={nodes.map(n => (
-                                        <span className={cn(
-                                            "text-xs font-mono px-2 py-1 rounded bg-muted inline-block",
-                                            n.versionStatus === 'current' && "text-emerald-500 bg-emerald-500/10",
-                                            n.versionStatus === 'outdated' && "text-amber-500 bg-amber-500/10",
-                                        )}>
-                                            {n.version}
-                                        </span>
-                                    ))}
-                                />
-
-                                {/* Location */}
-                                <ComparisonRow
-                                    label="Location"
-                                    values={nodes.map(n =>
-                                        n.location ? (
-                                            <div className="flex flex-col text-xs">
-                                                <span className="font-medium">{n.location.country}</span>
-                                                <span className="text-muted-foreground">{n.location.city}</span>
-                                            </div>
-                                        ) : 'Unknown'
-                                    )}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CollapsibleContent>
+                {/* Toggle tab on the right edge of the panel */}
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={cn(
+                        "absolute top-1/2 -translate-y-1/2 bg-background border shadow-lg rounded-r-lg p-2 transition-all",
+                        isOpen ? "left-80" : "left-0"
+                    )}
+                >
+                    {isOpen ? (
+                        <ChevronDown className="h-4 w-4 rotate-90" />
+                    ) : (
+                        <ChevronUp className="h-4 w-4 rotate-90" />
+                    )}
+                </button>
             </div>
-        </Collapsible>
+
+            {/* Minimized floating badge when panel is closed */}
+            {!isOpen && (
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="fixed top-20 left-2 z-40 bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 hover:bg-primary/90 transition-colors"
+                >
+                    <span className="text-sm font-medium">Compare</span>
+                    <span className="bg-primary-foreground/20 px-1.5 py-0.5 rounded text-xs">
+                        {nodes.length}
+                    </span>
+                </button>
+            )}
+        </>
     );
 }
+
