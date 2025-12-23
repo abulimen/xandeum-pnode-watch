@@ -121,19 +121,42 @@ export async function GET() {
     try {
         // Call the internal pRPC API with absolute URL (server-side needs this)
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        const response = await fetch(`${baseUrl}/api/prpc`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ method: 'get-pods-with-stats' }),
-            cache: 'no-store',
-        });
 
-        const result = await response.json();
+        let response;
+        try {
+            response = await fetch(`${baseUrl}/api/prpc`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'get-pods-with-stats' }),
+                cache: 'no-store',
+            });
+        } catch (fetchError) {
+            return NextResponse.json({
+                success: false,
+                error: 'Failed to fetch from pRPC API',
+                details: fetchError instanceof Error ? fetchError.message : String(fetchError),
+                baseUrl,
+            }, { status: 500 });
+        }
+
+        let result;
+        try {
+            result = await response.json();
+        } catch (parseError) {
+            return NextResponse.json({
+                success: false,
+                error: 'Failed to parse pRPC response',
+                details: parseError instanceof Error ? parseError.message : String(parseError),
+                status: response.status,
+            }, { status: 500 });
+        }
 
         if (!result.success || !result.data?.pods) {
             return NextResponse.json({
                 success: false,
-                error: 'Failed to fetch node data',
+                error: 'pRPC API returned failure',
+                details: result.error || 'No pods data',
+                result,
             }, { status: 500 });
         }
 
@@ -158,18 +181,22 @@ export async function GET() {
         }
 
         // Fetch credits from Xandeum API
-        const creditsResponse = await fetch('https://podcredits.xandeum.network/api/pods-credits', { next: { revalidate: 60 } });
         let creditsMap = new Map<string, number>();
-
-        if (creditsResponse.ok) {
-            const json = await creditsResponse.json();
-            if (json.status === 'success' && Array.isArray(json.pods_credits)) {
-                for (const item of json.pods_credits) {
-                    if (item.pod_id && typeof item.credits === 'number') {
-                        creditsMap.set(item.pod_id, item.credits);
+        try {
+            const creditsResponse = await fetch('https://podcredits.xandeum.network/api/pods-credits', { next: { revalidate: 60 } });
+            if (creditsResponse.ok) {
+                const json = await creditsResponse.json();
+                if (json.status === 'success' && Array.isArray(json.pods_credits)) {
+                    for (const item of json.pods_credits) {
+                        if (item.pod_id && typeof item.credits === 'number') {
+                            creditsMap.set(item.pod_id, item.credits);
+                        }
                     }
                 }
             }
+        } catch (creditsError) {
+            // Non-fatal: continue without credits
+            console.warn('Failed to fetch credits:', creditsError);
         }
 
         const maxTimestamp = Math.max(...validPods.map(p => p.last_seen_timestamp));
@@ -226,6 +253,8 @@ export async function GET() {
         return NextResponse.json({
             success: false,
             error: 'Internal server error',
+            details: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
         }, { status: 500 });
     }
 }
